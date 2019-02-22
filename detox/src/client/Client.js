@@ -89,9 +89,12 @@ class Client {
     // when this test run fails, we want a stack trace from up here where the
     // $callee is still available, and not inside the catch block where it isn't
     const potentialError = new Error();
-
+    let result;
     try {
-      await this.sendAction(new actions.Invoke(invocation));
+      result = await this.sendAction(new actions.Invoke(invocation));
+      if (result && result.params) {
+        result = result.params.result
+      }
     } catch (err) {
       this.successfulTestRun = false;
 
@@ -99,6 +102,7 @@ class Client {
       throw potentialError;
     }
     clearTimeout(this.slowInvocationStatusHandler);
+    return result;
   }
 
   getPendingCrashAndReset() {
