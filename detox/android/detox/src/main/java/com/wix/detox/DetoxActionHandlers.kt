@@ -45,11 +45,10 @@ class InvokeActionHandler(
         private val wsClient: WebSocketClient)
     : DetoxActionHandler {
 
-    private val validResultData = mapOf<String, Any>(Pair("result", "(null)"))
-
     override fun handle(params: String, messageId: Long) {
         try {
-            methodInvocation.invoke(params)
+            Object retVal = methodInvocation.invoke(params)
+            private val validResultData = mapOf<String, Any>(Pair("result", retVal))
             wsClient.sendAction("invokeResult", validResultData, messageId)
         } catch (e: InvocationTargetException) {
             Log.e(LOG_TAG, "Exception", e)
