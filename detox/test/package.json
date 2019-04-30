@@ -1,6 +1,6 @@
 {
   "name": "detox-test",
-  "version": "10.0.9",
+  "version": "12.6.0",
   "private": true,
   "scripts": {
     "test": ":",
@@ -14,19 +14,19 @@
     "verify-artifacts:android": "jest ./scripts/verify_artifacts_are_not_missing.android.test.js --testEnvironment node"
   },
   "dependencies": {
+    "moment": "^2.24.0",
     "react": "16.4.1",
     "react-native": "0.56.0"
   },
   "devDependencies": {
-    "detox": "^10.0.9",
+    "detox": "^12.6.0",
     "express": "^4.15.3",
-    "jest": "^22.3.0",
     "lodash": "^4.14.1",
-    "mocha": "^5.0.0"
+    "mocha": "^6.1.3",
+    "nyc": "^14.0.0"
   },
   "detox": {
-    "specs": "e2e",
-    "test-runner": "mocha",
+    "test-runner": "nyc mocha",
     "__session": {
       "server": "ws://localhost:8099",
       "sessionId": "test"
@@ -72,5 +72,23 @@
         "name": "Nexus_5X_API_26"
       }
     }
+  },
+  "nyc": {
+    "reporter": [
+      "lcov",
+      "html"
+    ],
+    "all": true,
+    "cwd": "..",
+    "include": [
+      "src/**/*.js"
+    ],
+    "report-dir": "test/coverage",
+    "exclude": [
+      "**/__test/**",
+      "**/__mocks__/**",
+      "**/*.mock.js",
+      "**/*.test.js"
+    ]
   }
 }

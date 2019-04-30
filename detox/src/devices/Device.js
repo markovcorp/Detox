@@ -1,7 +1,6 @@
 const _ = require('lodash');
 const fs = require('fs');
 const path = require('path');
-const log = require('../utils/logger').child({ __filename });
 const argparse = require('../utils/argparse');
 const debug = require('../utils/debug'); //debug utils, leave here even if unused
 
@@ -23,7 +22,7 @@ class Device {
 
     await this.deviceDriver.prepare();
 
-    if (!argparse.getArgValue('reuse')) {
+    if (!argparse.getArgValue('reuse') && !params.reuse) {
       await this.deviceDriver.uninstallApp(this._deviceId, this._bundleId);
       await this.deviceDriver.installApp(this._deviceId, this._binaryPath, this._testBinaryPath);
     }
@@ -95,6 +94,14 @@ class Device {
     if(params.detoxUserActivityDataURL) {
       await this.deviceDriver.cleanupRandomDirectory(params.detoxUserActivityDataURL);
     }
+  }
+
+  async takeScreenshot(name) {
+    if (!name) {
+      throw new Error('Cannot take a screenshot with an empty name.');
+    }
+
+    return this.deviceDriver.takeScreenshot(name);
   }
 
   _isAppInBackground(params, _bundleId) {

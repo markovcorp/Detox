@@ -145,8 +145,51 @@ Error: Cannot determine which configuration to use. use --configuration to choos
 
 Run your commands with one of these configurations, for example:
 
-`detox build --configuration ios.sim.debug`<br>
-`detox test --configuration ios.sim.debug`
+* `detox build --configuration ios.sim.debug`
+* `detox test --configuration ios.sim.debug`
+
+<hr>
+
+**Issue:** In an attempt to run `detox test` the following error is thrown:
+
+```
+detox[4498] INFO:  [test.js] node_modules/.bin/mocha --opts e2e/mocha.opts --configuration ios.sim.release --grep :android: --invert
+
+  error: unknown option `--configuration'
+```
+
+**Solution:** Upgrade to `detox@^12.4.0` and `mocha@^6.1.3`.
+That weird error has been spotted in older versions of `mocha` (including 5.2.0)
+and fixed since 6.0.0. In fact, it conceals the genuine error:
+
+```
+Error: No test files found
+```
+
+If the error appeared after running a short command like `detox test`,
+please try out `detox test e2e` (in other words, append the path to your
+end-to-end tests folder) - and if that fixes the error, then you deal the
+bug in the question and upgrading `detox` and `mocha` should help.
+
+Here's why you need to upgrade to `detox@12.4.0`.  In `12.1.0` there was a
+premature deprecation of `"specs"` property in detox section of `package.json`.
+The deprecation was revoked in `detox@12.4.0`, and since then `"specs"` property
+acts as a fallback if a test folder has not been specified explicitly.
+
+After you upgrade, you can configure the default path to your end-to-end tests folder
+in `package.json` (no deprecation warnings starting from `12.4.0`), as shown below:
+
+```diff
+ {
+   "detox": {
+-    "specs": "",  
++    "specs": "your-e2e-tests-folder",
+   }
+ }
+```
+
+Please mind that if your e2e tests are located at the default path (`e2e`),
+then you don't need to add `"specs"` property explicitly to `package.json`.
 
 <br>
 

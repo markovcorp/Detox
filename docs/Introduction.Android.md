@@ -5,6 +5,12 @@ title: Detox for Android
 
 ## Breaking Changes :warning:
 
+> If you are installing Detox for Android for the first time, you can skip right over to the setup section.
+
+> Follow our [Migration Guide](Guide.Migration.md) for instructions on how to upgrade from older versions.
+
+* **In version 11 we switched to using Android Espresso of Android's new [androidx.\*  support libraries](https://developer.android.com/jetpack/androidx/).** We did this in order to stay up to date with Google's latest features and bug fixes, in the hopes of using them to improve our own Android support (which gets better every day!).
+
 * **In version 10, we've made [Kotlin](https://kotlinlang.org/) mandatory for integrating Detox into your Android project.** In the very least, you must include the Kotlin gradle plugin in your project, as we shall see later on. Nevertheless, this is a breaking change so bear that in mind when upgrading. In any case, worry not of the impact on your app, as - unless you effectively use Kotlin in your own native code, **there will be no impact on the final APK**, in terms of size and methods count.
 
 * **As of version 7** we require Android gradle plugin 3.0.0 or newer. This is a breaking change that makes it impossible to support previous Android gradle plugin versions.
@@ -15,63 +21,67 @@ title: Detox for Android
 
   **Note: As a rule of thumb, we consider all old major versions discontinued; We only support the latest Detox major version.**
 
+
+
 ## Setup :gear:
+
 ### 1. Run through the initial _Getting Started_ Guide
 
 - [Getting Started](Introduction.GettingStarted.md)
 
+
+
 ### 2. Add Detox dependency to an Android project
 
-In `android/settings.gradle` add:
+> **Starting Detox 12.5.0, Detox is shipped as a precompiled `.aar`.**
+> To configure Detox as a _compiling dependency_, nevertheless -- refer to the _Setting Detox up as a compiling dependency_ section at the bottom.
+
+In your *root* buildscript (i.e. `build.gradle`), register both `google()` _and_ detox as repository lookup points in all projects:
 
 ```groovy
-include ':detox'
-project(':detox').projectDir = new File(rootProject.projectDir, '../node_modules/detox/android/detox')
-```
-
-In `android/app/build.gradle` add this to `defaultConfig` section:
-
-```groovy
-  defaultConfig {
-      ...
-      testBuildType System.getProperty('testBuildType', 'debug')  //this will later be used to control the test apk build type
-      missingDimensionStrategy "minReactNative", "minReactNative46" //read note
-      testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-      ...
-  }
-```
-Please be aware that the `minSdkVersion` needs to be at least 18.
-
-> ###### Choosing the right build type (in missingDimensionStrategy)
->Detox runs on multiple React Native versions, choose the correct build type to support the version you use.<br>
->**Available versions:**
->
->* `minReactNative44`: Support for React Native 0.44-0.45
->* `minReactNative46`: Support for React Native 0.46+
-
-
-In `android/app/build.gradle` add this in `dependencies` section:
-
-```groovy
-dependencies {
-	// ...
-    androidTestImplementation(project(path: ":detox"))
-    androidTestImplementation 'junit:junit:4.12'
-    androidTestImplementation 'com.android.support.test:runner:1.0.1'
-    androidTestImplementation 'com.android.support.test:rules:1.0.1'
-}
-```
-
-And in `android/build.gradle` you need to add this under `allprojects > repositories`:
-
-```groovy
-buildscript {
+// Note: add the 'allproject' section if it doesn't exist
+allprojects {
     repositories {
-	    // ...
+        // ...
         google()
+        maven {
+            // All of Detox' artifacts are provided via the npm module
+            url "$rootDir/../node_modules/detox/Detox-android"
+        }
     }
 }
 ```
+
+
+
+In your app's buildscript (i.e. `app/build.gradle`) add this in `dependencies` section:
+
+```groovy
+dependencies {
+	  // ...
+    androidTestImplementation('com.wix:detox:+') { transitive = true } 
+    androidTestImplementation 'junit:junit:4.12'
+}
+```
+
+
+
+In your app's buildscript (i.e. `app/build.gradle`)  add this to the `defaultConfig` subsection:
+
+```groovy
+android {
+  // ...
+  
+  defaultConfig {
+      // ...
+      testBuildType System.getProperty('testBuildType', 'debug')  // This will later be used to control the test apk build type
+      testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+  }
+}
+```
+Please be aware that the `minSdkVersion` needs to be at least 18.
+
+
 
 ### 3. Add Kotlin
 
@@ -103,9 +113,13 @@ buildscript {
 
 ***Note that Detox has been tested for version 1.1.0 of Kotlin, and higher!***
 
+
+
 ### 4. Create Android Test class
 
 Add the file `android/app/src/androidTest/java/com/[your.package]/DetoxTest.java` and fill as in [the detox example app for NR](../examples/demo-react-native/android/app/src/androidTest/java/com/example/DetoxTest.java). **Don't forget to change the package name to your project's**.
+
+
 
 ### 5. Add Android configuration
 
@@ -149,6 +163,29 @@ Using the `android.emu.debug` configuration from above, you can invoke it in the
 detox test -c android.emu.debug
 ```
 
+
+
+## Proguard (Minification)
+
+In apps running [minification using Proguard](https://developer.android.com/studio/build/shrink-code), in order for Detox to work well on release builds, please enable some Detox proguard-configuration rules by applying the custom configuration file on top of your own. Typically, this is defined using the `proguardFiles` statement in the minification-enabled build-type in your `app/build.gradle`:
+
+```groovy
+    buildTypes {
+        // 'release' is typically the default proguard-enabled build-type
+        release {
+            minifyEnabled true
+
+            // Typical pro-guard definitions
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            // Detox-specific additions to pro-guard
+            proguardFile "${rootProject.projectDir}/../node_modules/detox/android/detox/proguard-rules-app.pro"
+        }
+    }
+
+```
+
+
+
 ## Troubleshooting
 
 ### Problem: `Duplicate files copied in ...`
@@ -167,3 +204,63 @@ packagingOptions {
     exclude 'META-INF/LICENSE'
 }
 ```
+
+
+
+## Setting Detox up as a compiling dependency
+
+This is an **alternative** to the setup process described under the previous section, on adding Detox as a dependency.
+
+
+
+In your project's `settings.gradle` add:
+
+```groovy
+include ':detox'
+project(':detox').projectDir = new File(rootProject.projectDir, '../node_modules/detox/android/detox')
+```
+
+
+
+In your *root* buildscript (i.e. `build.gradle`), register `google()` as a repository lookup point in all projects:
+
+```groovy
+// Note: add the 'allproject' section if it doesn't exist
+allprojects {
+    repositories {
+        // ...
+        google()
+    }
+}
+```
+
+
+
+In your app's buildscript (i.e. `app/build.gradle`) add this in `dependencies` section:
+
+```groovy
+dependencies {
+  	// ...
+    androidTestImplementation(project(path: ":detox"))
+    androidTestImplementation 'junit:junit:4.12'
+}
+```
+
+
+
+In your app's buildscript (i.e. `app/build.gradle`) add this to the `defaultConfig` subsection:
+
+```groovy
+android {
+  // ...
+  
+  defaultConfig {
+      // ...
+      testBuildType System.getProperty('testBuildType', 'debug')  // This will later be used to control the test apk build type
+      testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner'
+  }
+}
+```
+
+Please be aware that the `minSdkVersion` needs to be at least 18.
+

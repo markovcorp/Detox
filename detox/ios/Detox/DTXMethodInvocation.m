@@ -8,7 +8,7 @@
 
 #import "DTXMethodInvocation.h"
 @import EarlGrey;
-#import <EarlGrey/GreyActions.h>
+#import <EarlGrey/GREYActions.h>
 #import "GREYActions+Detox.h"
 
 @implementation DTXMethodInvocation
@@ -63,7 +63,7 @@
     }
     if ([type isEqualToString:@"CGFloat"])
     {
-        if (![value isKindOfClass:[NSNumber class]]) return nil;
+        if (![value isKindOfClass:[NSNumber class]]) return @(NAN);
         CGFloat v = [value doubleValue];
         return [NSNumber numberWithDouble:v];
     }

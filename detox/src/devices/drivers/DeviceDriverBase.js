@@ -11,9 +11,13 @@ class DeviceDriverBase {
     this.emitter = new AsyncEmitter({
       events: [
         'bootDevice',
+        'beforeShutdownDevice',
         'shutdownDevice',
+        'beforeTerminateApp',
+        'beforeUninstallApp',
         'beforeLaunchApp',
         'launchApp',
+        'userAction',
       ],
       onError: this._onEmitError.bind(this),
     });
@@ -45,6 +49,13 @@ class DeviceDriverBase {
 
   async launchApp() {
     return await Promise.resolve('');
+  }
+
+  async takeScreenshot(name) {
+    await this.emitter.emit('userAction', {
+      type: 'takeScreenshot',
+      options: { name },
+    });
   }
 
   async sendToHome() {

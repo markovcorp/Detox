@@ -4,7 +4,6 @@ const path = require('path');
 const util = require('util');
 const log = require('../utils/logger').child({ __filename });
 const argparse = require('../utils/argparse');
-const DetoxRuntimeError = require('../errors/DetoxRuntimeError');
 const ArtifactPathBuilder = require('./utils/ArtifactPathBuilder');
 
 class ArtifactsManager {
@@ -78,13 +77,29 @@ class ArtifactsManager {
 
   subscribeToDeviceEvents(deviceEmitter) {
     deviceEmitter.on('bootDevice', this.onBootDevice.bind(this));
+    deviceEmitter.on('beforeShutdownDevice', this.onBeforeShutdownDevice.bind(this));
     deviceEmitter.on('shutdownDevice', this.onShutdownDevice.bind(this));
     deviceEmitter.on('beforeLaunchApp', this.onBeforeLaunchApp.bind(this));
     deviceEmitter.on('launchApp', this.onLaunchApp.bind(this));
+    deviceEmitter.on('beforeUninstallApp', this.onBeforeUninstallApp.bind(this));
+    deviceEmitter.on('beforeTerminateApp', this.onBeforeTerminateApp.bind(this));
+    deviceEmitter.on('userAction', this.onUserAction.bind(this));
   }
 
   async onBootDevice(deviceInfo) {
     await this._callPlugins('onBootDevice', deviceInfo);
+  }
+
+  async onBeforeTerminateApp(appInfo) {
+    await this._callPlugins('onBeforeTerminateApp', appInfo);
+  }
+
+  async onBeforeUninstallApp(appInfo) {
+    await this._callPlugins('onBeforeUninstallApp', appInfo);
+  }
+
+  async onBeforeShutdownDevice(deviceInfo) {
+    await this._callPlugins('onBeforeShutdownDevice', deviceInfo);
   }
 
   async onShutdownDevice(deviceInfo) {
@@ -97,6 +112,10 @@ class ArtifactsManager {
 
   async onLaunchApp(appLaunchInfo) {
     await this._callPlugins('onLaunchApp', appLaunchInfo);
+  }
+
+  async onUserAction(actionInfo) {
+    await this._callPlugins('onUserAction', actionInfo);
   }
 
   async onBeforeAll() {
@@ -156,14 +175,14 @@ class ArtifactsManager {
 
   _unhandledPluginExceptionHandler(err, { plugin, methodName, args }) {
     const logObject = {
-      event: 'PLUGIN_ERROR',
+      event: 'SUPPRESS_PLUGIN_ERROR',
       plugin: plugin.name,
       err,
       methodName,
     };
 
     const callSignature = this._composeCallSignature(plugin.name, methodName, args);
-    log.error(logObject, `Caught exception inside function call: ${callSignature}`);
+    log.warn(logObject, `Suppressed error inside function call: ${callSignature}`);
   }
 
   _idleCallbackErrorHandle(err, caller) {

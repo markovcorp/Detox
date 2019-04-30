@@ -22,9 +22,6 @@ class SimulatorLogRecording extends Artifact {
     this._logStream = null;
     this._stdoutTail = null;
     this._stderrTail = null;
-
-    this._beforeUnwatch = null;
-    this._beforeClose = null;
   }
 
   async doStart({ readFromBeginning } = {}) {
@@ -35,24 +32,15 @@ class SimulatorLogRecording extends Artifact {
     this._logStream = this._logStream || this._openWriteableStream();
     this._stdoutTail = await this._createTail(this._stdoutPath, 'stdout');
     this._stderrTail = await this._createTail(this._stderrPath, 'stderr');
-    this._beforeUnwatch = sleep(200); // HACK: experimental value that ensures saving all lines from tail
   }
 
   async doStop() {
     await this._unwatch();
-    this._beforeClose = sleep(100); // HACK: works around the Tail bug - it emits lines even after unwatch
   }
 
   async doSave(artifactPath) {
     await this._closeWriteableStream();
-
-    const tempLogPath = this._logPath;
-    if (await fs.exists(tempLogPath)) {
-      log.debug({ event: 'MOVE_FILE' }, `moving "${tempLogPath}" to ${artifactPath}`);
-      await fs.move(tempLogPath, artifactPath);
-    } else {
-      log.error({ event: 'MOVE_FILE_ERROR'} , `did not find temporary log file: ${tempLogPath}`);
-    }
+    await Artifact.moveTemporaryFile(log, this._logPath, artifactPath);
   }
 
   async doDiscard() {
@@ -66,21 +54,22 @@ class SimulatorLogRecording extends Artifact {
   }
 
   async _unwatch() {
-    await this._beforeUnwatch;
+    await Promise.all([this._unwatchTail('stdout'), this._unwatchTail('stderr')]);
+  }
 
-    if (this._stdoutTail) {
-      log.trace({ event: 'TAIL_UNWATCH' }, `unwatching stdout log: ${this._stdoutPath}`);
-      this._stdoutTail.unwatch();
+  async _unwatchTail(stdxxx) {
+    const stdTail = `_${stdxxx}Tail`;
+    const logPath = this[`_${stdxxx}Path`];
+    const tail = this[stdTail];
+
+    if (tail) {
+      log.trace({ event: 'TAIL_UNWATCH' }, `unwatching ${stdxxx} log: ${logPath}`);
+      tail.watch = _.noop; // HACK: suppress race condition: https://github.com/lucagrulla/node-tail/blob/3791355a0ddcc5de72e1ad64ea2f0d6e78e2c9c5/src/tail.coffee#L102
+      tail.unwatch();
+      await new Promise((resolve) => setImmediate(resolve));
     }
 
-    this._stdoutTail = null;
-
-    if (this._stderrTail) {
-      log.trace({ event: 'TAIL_UNWATCH' }, `unwatching stderr log: ${this._stderrPath}`);
-      this._stderrTail.unwatch();
-    }
-
-    this._stderrTail = null;
+    this[stdTail] = null;
   }
 
   async _closeWriteableStream() {
@@ -88,7 +77,6 @@ class SimulatorLogRecording extends Artifact {
 
     const stream = this._logStream;
     this._logStream = null;
-    await this._beforeClose;
     await new Promise(resolve => stream.end(resolve));
   }
 
@@ -100,36 +88,16 @@ class SimulatorLogRecording extends Artifact {
 
     log.trace({ event: 'TAIL_CREATE' }, `starting to watch ${prefix} log: ${file}`);
 
-    const tail = new Tail(file, {
-      fromBeginning: this._readFromBeginning,
-      logger: {
-        info: _.noop,
-        error: (...args) => log.error({ event: 'TAIL_ERROR' }, ...args),
-      },
-    }).on('line', (line) => {
-      this._appendLine(prefix, line);
-    });
-
-    if (this._readFromBeginning) {
-      this._triggerTailReadUsingHack(tail);
-    }
+    const tail = new Tail(file, { fromBeginning: this._readFromBeginning })
+      .on('line', (line) => { this._appendLine(prefix, line); })
+      .on('error', (err) => { log.warn({ event: 'TAIL_ERROR' }, err); });
 
     return tail;
   }
 
-  /***
-   * @link https://github.com/lucagrulla/node-tail/issues/40
-   */
-  _triggerTailReadUsingHack(tail) {
-    tail.watchEvent.call(tail, "change");
-  }
-
   _appendLine(prefix, line) {
     if (this._logStream) {
-      this._logStream.write(prefix);
-      this._logStream.write(': ');
-      this._logStream.write(line);
-      this._logStream.write('\n');
+      this._logStream.write(`${prefix}: ${line}\n`);
     } else {
       log.warn({ event: 'LOG_WRITE_ERROR' }, 'failed to add line to log:\n' + line);
     }

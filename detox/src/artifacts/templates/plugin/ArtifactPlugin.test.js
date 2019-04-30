@@ -75,7 +75,10 @@ describe(ArtifactPlugin, () => {
     it('should update context on .onBeforeLaunchApp', async () => {
       await expect(plugin.onBeforeLaunchApp({
         deviceId: 'testDeviceId',
-        bundleId: 'testBundleId'
+        bundleId: 'testBundleId',
+        launchArgs: {
+          detoxSessionId: 'test',
+        },
       }));
 
       expect(plugin.context).toMatchSnapshot();
@@ -85,7 +88,28 @@ describe(ArtifactPlugin, () => {
       await expect(plugin.onLaunchApp({
         deviceId: 'testDeviceId',
         bundleId: 'testBundleId',
+        launchArgs: {
+          detoxSessionId: 'test',
+        },
         pid: 2018
+      }));
+
+      expect(plugin.context).toMatchSnapshot();
+    });
+
+    it('should update context on .onBeforeUninstallApp', async () => {
+      await expect(plugin.onBeforeUninstallApp({
+        deviceId: 'testDeviceId',
+        bundleId: 'testBundleId',
+      }));
+
+      expect(plugin.context).toMatchSnapshot();
+    });
+
+    it('should update context on .onBeforeTerminateApp', async () => {
+      await expect(plugin.onBeforeTerminateApp({
+        deviceId: 'testDeviceId',
+        bundleId: 'testBundleId',
       }));
 
       expect(plugin.context).toMatchSnapshot();
@@ -100,6 +124,14 @@ describe(ArtifactPlugin, () => {
       expect(plugin.context).toMatchSnapshot();
     });
 
+    it('should have .onBeforeShutdownDevice', async () => {
+      await expect(plugin.onBeforeShutdownDevice({
+        deviceId: 'testDeviceId'
+      }));
+
+      expect(plugin.context).toMatchSnapshot();
+    });
+
     it('should have .onShutdownDevice', async () => {
       await expect(plugin.onShutdownDevice({
         deviceId: 'testDeviceId'
@@ -108,19 +140,33 @@ describe(ArtifactPlugin, () => {
       expect(plugin.context).toMatchSnapshot();
     });
 
-    it('should have .onBeforeAll', async () =>
-      await expect(plugin.onBeforeAll()).resolves.toBe(void 0));
-
-    it('should have .onBeforeEach', async () => {
-      const testSummary = testSummaries.running();
-      await expect(plugin.onBeforeEach(testSummary)).resolves.toBe(void 0);
+    it('should have .onUserAction', async () => {
+      await expect(plugin.onUserAction()).resolves.toBe(void 0);
     });
 
-    it('should have .onAfterEach', async () =>
-      await expect(plugin.onAfterEach(testSummaries.failed())).resolves.toBe(void 0));
+    it('should have .onBeforeAll, which resets context.testSummary if called', async () => {
+      plugin.context.testSummary = {};
+      await plugin.onBeforeAll();
+      expect(plugin.context.testSummary).toBe(null);
+    });
 
-    it('should have .onAfterAll', async () =>
-      await expect(plugin.onAfterAll()).resolves.toBe(void 0));
+    it('should have .onBeforeEach, which updates context.testSummary if called', async () => {
+      const testSummary = testSummaries.running();
+      await plugin.onBeforeEach(testSummary);
+      expect(plugin.context.testSummary).toBe(testSummary);
+    });
+
+    it('should have .onAfterEach, which updates context.testSummary if called', async () => {
+      const testSummary = testSummaries.failed();
+      await plugin.onAfterEach(testSummary);
+      expect(plugin.context.testSummary).toBe(testSummary);
+    });
+
+    it('should have .onAfterAll, which resets context.testSummary if called', async () => {
+      plugin.context.testSummary = {};
+      await plugin.onAfterAll();
+      expect(plugin.context.testSummary).toBe(null);
+    });
 
     describe('.onTerminate', () => {
       it('should disable plugin with a reason', async () => {
@@ -133,13 +179,16 @@ describe(ArtifactPlugin, () => {
         await plugin.onTerminate();
 
         expect(plugin.onBootDevice).toBe(plugin.onTerminate);
+        expect(plugin.onBeforeShutdownDevice).toBe(plugin.onTerminate);
         expect(plugin.onShutdownDevice).toBe(plugin.onTerminate);
         expect(plugin.onBeforeLaunchApp).toBe(plugin.onTerminate);
         expect(plugin.onLaunchApp).toBe(plugin.onTerminate);
+        expect(plugin.onBeforeTerminateApp).toBe(plugin.onTerminate);
         expect(plugin.onBeforeAll).toBe(plugin.onTerminate);
         expect(plugin.onBeforeEach).toBe(plugin.onTerminate);
         expect(plugin.onAfterEach).toBe(plugin.onTerminate);
         expect(plugin.onAfterAll).toBe(plugin.onTerminate);
+        expect(plugin.onUserAction).toBe(plugin.onTerminate);
       });
 
       it('should not work after the first call', async () => {

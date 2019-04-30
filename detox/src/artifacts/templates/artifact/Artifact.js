@@ -1,4 +1,4 @@
-const _ = require('lodash');
+const fs = require('fs-extra');
 const log = require('../../../utils/logger').child({ __filename });
 
 class Artifact {
@@ -101,6 +101,17 @@ class Artifact {
   async doSave(artifactPath) {}
 
   async doDiscard() {}
+
+  static async moveTemporaryFile(logger, source, destination) {
+    if (await fs.exists(source)) {
+      logger.debug({ event: 'MOVE_FILE' }, `moving "${source}" to ${destination}`);
+      await fs.move(source, destination);
+      return true;
+    } else {
+      logger.warn({ event: 'MOVE_FILE_MISSING'} , `did not find temporary file: ${source}`);
+      return false;
+    }
+  }
 }
 
 module.exports = Artifact;

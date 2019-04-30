@@ -102,6 +102,8 @@ class ADB {
   }
 
   async install(deviceId, apkPath) {
+    apkPath = `"${escape.inQuotedString(apkPath)}"`;
+    
     const apiLvl = await this.apiLevel(deviceId);
 
     let childProcess;
@@ -131,7 +133,7 @@ class ADB {
   async pidof(deviceId, bundleId) {
     const bundleIdRegex = escape.inQuotedRegexp(bundleId) + '$';
 
-    const processes = await this.shell(deviceId, `ps | grep "${bundleIdRegex}"`).catch(() => '');
+    const processes = await this.shell(deviceId, `ps | grep "${bundleIdRegex}"`, {silent: true}).catch(() => '');
     if (!processes) {
       return NaN;
     }

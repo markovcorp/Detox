@@ -1,3 +1,4 @@
+const tempfile = require('tempfile');
 const config = require('../configurations.mock').validOneDeviceAndSession.session;
 const invoke = require('../invoke');
 
@@ -48,6 +49,31 @@ describe('Client', () => {
     await client.shake();
 
     expect(client.ws.send).toHaveBeenCalledTimes(2);
+  });
+
+  it(`startInstrumentsRecording() - should send a 'setRecordingState' action and resolve when 'setRecordingStateDone' returns`, async () => {
+    await connect();
+    client.ws.send.mockReturnValueOnce(response("setRecordingStateDone", {}, 1));
+
+    const recordingPath = tempfile('.dtxrec');
+    await client.startInstrumentsRecording({ recordingPath });
+
+    expect(client.ws.send).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'setRecordingState',
+      params: expect.objectContaining({ recordingPath }),
+    }), undefined);
+  });
+
+  it(`stopInstrumentsRecording() - should send an empty 'setRecordingState' action and resolve when 'setRecordingStateDone' returns`, async () => {
+    await connect();
+    client.ws.send.mockReturnValueOnce(response("setRecordingStateDone", {}, 1));
+
+    await client.stopInstrumentsRecording();
+
+    expect(client.ws.send).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'setRecordingState',
+      params: {}
+    }), undefined);
   });
 
   it(`waitUntilReady() - should receive ready from device and resolve`, async () => {
@@ -167,6 +193,17 @@ describe('Client', () => {
       await client.execute(call);
     } catch (ex) {
       expect(ex).toBeDefined();
+    }
+  });
+
+  it(`execute() - should throw if non-error is thrown`, async () => {
+    await connect();
+    client.ws.send.mockRejectedValueOnce("non-error");
+    const call = invoke.call(invoke.IOS.Class('GREYMatchers'), 'matcherForAccessibilityLabel:', 'test');
+    try {
+      await client.execute(call);
+    } catch (ex) {
+      expect(ex.message).toBe("non-error");
     }
   });
 

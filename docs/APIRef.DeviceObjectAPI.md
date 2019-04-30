@@ -24,6 +24,7 @@ title: The `device` Object
 - [`device.disableSynchronization()`](#devicedisablesynchronization)
 - [`device.resetContentAndSettings()`](#deviceresetcontentandsettings)
 - [`device.getPlatform()`](#devicegetplatform)
+- [`device.takeScreenshot(name)`](#devicetakescreenshotname)
 - [`device.pressBack()` **Android Only**](#devicepressback-android-only)
 - [`device.shake()` **iOS Only**](#deviceshake-ios-only)
 
@@ -188,7 +189,7 @@ await device.launchApp({
 ```
 
 ### `device.relaunchApp(params)`
-**Deprecated** Use `device.launchApp(params)` instead. This method is now calling `launchApp({newInstance: true})` for backwards compatibility, it will be removed in Detox 6.X.X.<Br>
+**Deprecated** Use `device.launchApp(params)` instead. This method is now calling `launchApp({newInstance: true})` for backwards compatibility.<Br>
 Kill and relaunch the app defined in the current [`configuration`](APIRef.Configuration.md).
 
 ### `device.terminateApp()`
@@ -307,6 +308,26 @@ if (device.getPlatform() === 'ios') {
   await expect(loopSwitch).toHaveValue('1');
 }
 ```
+
+### `device.takeScreenshot(name)`
+Takes a screenshot on the device and schedules putting it to
+the [artifacts folder](APIRef.Artifacts.md#enabling-artifacts) upon
+completion of the current test. Consider the example below:
+
+```js
+describe('Menu items', () => {
+  it('should have Logout', async () => {
+    // ...
+    await device.takeScreenshot('tap on menu');
+    // ...
+  });
+});
+```
+
+* If the test passes, the screenshot will be put to `<artifacts-location>/✓ Menu items should have Logout/tap on menu.png`.
+* If the test fails, the screenshot will be put to `<artifacts-location>/✗ Menu items should have Logout/tap on menu.png`.
+
+> NOTE: At the moment, taking screenshots on-demand in `--take-screenshots failing` mode is not yet implemented.
 
 ### `device.pressBack()` **Android Only**
 Simulate press back button.

@@ -9,20 +9,19 @@ class SimulatorLogPlugin extends LogArtifactPlugin {
     this.appleSimUtils = config.appleSimUtils;
   }
 
-  async onShutdownDevice(event) {
-    await super.onShutdownDevice(event);
+  async onBeforeShutdownDevice(event) {
+    await super.onBeforeShutdownDevice(event);
     await this._tryStopCurrentRecording();
   }
 
-  async onBeforeLaunchApp(event) {
-    await super.onBeforeLaunchApp(event);
+  async onBeforeUninstallApp(event) {
+    await super.onBeforeUninstallApp(event);
     await this._tryStopCurrentRecording();
   }
 
-  async _tryStopCurrentRecording() {
-    if (this.currentRecording) {
-      await this.currentRecording.stop();
-    }
+  async onBeforeTerminateApp(event) {
+    await super.onBeforeTerminateApp(event);
+    await this._tryStopCurrentRecording();
   }
 
   async onLaunchApp(event) {
@@ -32,6 +31,12 @@ class SimulatorLogPlugin extends LogArtifactPlugin {
       await this.currentRecording.start({
         readFromBeginning: true,
       });
+    }
+  }
+
+  async _tryStopCurrentRecording() {
+    if (this.currentRecording) {
+      await this.currentRecording.stop();
     }
   }
 

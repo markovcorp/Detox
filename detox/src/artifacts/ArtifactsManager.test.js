@@ -88,9 +88,13 @@ describe('ArtifactsManager', () => {
           name: 'testPlugin',
           disable: jest.fn(),
           onBootDevice: jest.fn(),
+          onBeforeShutdownDevice: jest.fn(),
           onShutdownDevice: jest.fn(),
+          onBeforeUninstallApp: jest.fn(),
+          onBeforeTerminateApp: jest.fn(),
           onBeforeLaunchApp: jest.fn(),
           onLaunchApp: jest.fn(),
+          onUserAction: jest.fn(),
           onBeforeAll: jest.fn(),
           onBeforeEach: jest.fn(),
           onAfterEach: jest.fn(),
@@ -230,7 +234,7 @@ describe('ArtifactsManager', () => {
             });
 
             await artifactsManager[hookName](argFactory());
-            expect(proxy.logger.error.mock.calls).toMatchSnapshot();
+            expect(proxy.logger.warn.mock.calls).toMatchSnapshot();
           });
         }
 
@@ -249,6 +253,17 @@ describe('ArtifactsManager', () => {
           deviceId: 'testDeviceId',
         }));
 
+        itShouldCatchErrorsOnPhase('onUserAction', () => ({
+          type: 'takeScreenshot',
+          options: {
+            name: 'open app',
+          }
+        }));
+
+        itShouldCatchErrorsOnPhase('onBeforeShutdownDevice', () => ({
+          deviceId: 'testDeviceId'
+        }));
+
         itShouldCatchErrorsOnPhase('onShutdownDevice', () => ({
           deviceId: 'testDeviceId'
         }));
@@ -262,6 +277,16 @@ describe('ArtifactsManager', () => {
           bundleId: 'testBundleId',
           deviceId: 'testDeviceId',
           pid: 2018,
+        }));
+
+        itShouldCatchErrorsOnPhase('onBeforeTerminateApp', () => ({
+          bundleId: 'testBundleId',
+          deviceId: 'testDeviceId',
+        }));
+
+        itShouldCatchErrorsOnPhase('onBeforeUninstallApp', () => ({
+          bundleId: 'testBundleId',
+          deviceId: 'testDeviceId',
         }));
       });
 
@@ -322,6 +347,44 @@ describe('ArtifactsManager', () => {
         });
       });
 
+      describe('onBeforeTerminateApp', () => {
+        it('should call onBeforeTerminateApp in plugins', async () => {
+          const terminateInfo = {
+            deviceId: 'testDeviceId',
+            bundleId: 'testBundleId',
+          };
+
+          expect(testPlugin.onBeforeTerminateApp).not.toHaveBeenCalled();
+          await artifactsManager.onBeforeTerminateApp(terminateInfo);
+          expect(testPlugin.onBeforeTerminateApp).toHaveBeenCalledWith(terminateInfo);
+        });
+      });
+
+      describe('onBeforeUninstallApp', () => {
+        it('should call onBeforeUninstallApp in plugins', async () => {
+          const uninstallInfo = {
+            deviceId: 'testDeviceId',
+            bundleId: 'testBundleId',
+          };
+
+          expect(testPlugin.onBeforeUninstallApp).not.toHaveBeenCalled();
+          await artifactsManager.onBeforeUninstallApp(uninstallInfo);
+          expect(testPlugin.onBeforeUninstallApp).toHaveBeenCalledWith(uninstallInfo);
+        });
+      });
+
+      describe('onBeforeShutdownDevice', () => {
+        it('should call onBeforeShutdownDevice in plugins', async () => {
+          const shutdownInfo = {
+            deviceId: 'testDeviceId',
+          };
+
+          expect(testPlugin.onBeforeShutdownDevice).not.toHaveBeenCalled();
+          await artifactsManager.onBeforeShutdownDevice(shutdownInfo);
+          expect(testPlugin.onBeforeShutdownDevice).toHaveBeenCalledWith(shutdownInfo);
+        });
+      });
+
       describe('onShutdownDevice', () => {
         it('should call onShutdownDevice in plugins', async () => {
           const shutdownInfo = {
@@ -332,6 +395,20 @@ describe('ArtifactsManager', () => {
           await artifactsManager.onShutdownDevice(shutdownInfo);
           expect(testPlugin.onShutdownDevice).toHaveBeenCalledWith(shutdownInfo);
         });
+      });
+    });
+
+    describe('onUserAction', () => {
+      it('should call onUserAction in plugins', async () => {
+        const actionInfo = {
+          type: 'takeScreenshot',
+          options: {
+            name: 'open app',
+          },
+        };
+
+        await artifactsManager.onUserAction(actionInfo);
+        expect(testPlugin.onUserAction).toHaveBeenCalledWith(actionInfo);
       });
     });
 

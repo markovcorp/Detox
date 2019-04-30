@@ -2,9 +2,11 @@ jest.mock('../../../utils/argparse');
 jest.mock('../../../utils/logger');
 
 const _ = require('lodash');
+const os = require('os');
 const tempfile = require('tempfile');
 const fs = require('fs-extra');
 const path = require('path');
+const sleep = require('../../../utils/sleep');
 
 describe('SimulatorLogPlugin', () => {
   async function majorWorkflow() {
@@ -88,6 +90,10 @@ describe('SimulatorLogPlugin', () => {
     await artifactsManager.onBeforeAll();
     await logToDeviceLogs('inside before all');
 
+    if (os.platform() !== 'darwin') {
+      await sleep(1000); // HACK: till we replace `tail` with something less flaky
+    }
+
     await artifactsManager.onBeforeEach({ title: 'test', fullName: 'some test', status: 'running'});
     await logToDeviceLogs('inside before each');
 
@@ -121,7 +127,7 @@ describe('SimulatorLogPlugin', () => {
   }
 
   it('should work consistently in a stressed environment, through-out boots, launches and relaunches', async () => {
-    const results = await Promise.all(_.times(3, majorWorkflow));
+    const results = await Promise.all(_.times(100, majorWorkflow));
 
     for (const [snapshotName, value] of Object.entries(results[0])) {
       expect(value).toMatchSnapshot(snapshotName);

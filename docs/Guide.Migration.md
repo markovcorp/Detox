@@ -5,7 +5,204 @@ title: Migration Guide
 
 We are improving detox API as we go along, sometimes these changes require us to break the API in order for it to make more sense. These migration guides refer to breaking changes.
 
+## Migrating from Detox 12.4.x to 12.5.0 (nonbreaking)
+
+Starting Detox `12.5.0`, we ship Android with precompiled sources under a  `.aar` file. The complete configuration process is thoroughly described in the [Android setup guide](Introduction.Android.md#2-add-detox-dependency-to-an-android-project) - but it mostly fits **new** projects. For existing projects, migrating is strongly recommended; Here's the diff:
+
+Root `settings.gradle` file:
+
+```diff
+-include ':detox'
+-project(':detox').projectDir = new File(rootProject.projectDir, '../node_modules/detox/android/detox')
+```
+
+
+
+Root buildscript (i.e. `build.gradle`):
+
+```diff
+allprojects {
+    repositories {
+         // ...
++        maven {
++            url "$rootDir/../node_modules/detox/Detox-android"
++        }
+     }
+ }
+```
+
+
+
+App buildscript (i.e. `app/build.gradle`):
+
+```diff
+ dependencies {
+-    androidTestImplementation(project(path: ":detox"))
++    androidTestImplementation('com.wix:detox:+') { transitive = true }
+ }
+```
+
+
+
+#### Proguard Configuration
+
+If you have Detox Proguard rules integrated into the `app/build.gradle`, be sure to switch to an explicit search path:
+
+```diff
+     buildTypes {
+         release {
+         
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+-            proguardFile "${project(':detox').projectDir}/proguard-rules-app.pro"
++            proguardFile "${rootProject.projectDir}/../node_modules/detox/android/detox/proguard-rules-app.pro"
+
+         }
+     }
+```
+
+
+
+## Migrating from Detox 12.3.x to 12.4.0
+
+The deprecation of `"specs"` (in `package.json`) introduced in 12.1.0 is **no longer relevant**.
+It is valid now, like it was before, but from now on the semantics has been slightly changed -
+it acts as a fallback for the default root for your Detox e2e specs, in cases when
+you don't specify it explicitly, e.g.:
+
+```sh
+detox test   # translates to: mocha <...args> e2e
+detox test e2e/01.sanity.test.js  # translates to: mocha <...args> e2e/01.sanity.test.js
+```
+
+Between 12.1.x and 12.3.x, it was buggy and used to work like this:
+
+```sh
+detox test   # translates to: mocha <...args> e2e
+detox test e2e/01.sanity.test.js  # translates to: mocha <...args> e2e e2e/01.sanity.test.js
+```
+
+## Migrating from Detox 12.0.x to 12.1.x
+
+This is not a breaking change yet, but starting from `detox@12.1.0` you'll start seeing warnings like:
+
+```
+detox[21201] WARN:  [deprecation.js] Beware: -f, --file will be removed in the next version of Detox.
+detox[21201] WARN:  [deprecation.js] See the migration guide:
+https://github.com/wix/Detox/blob/master/docs/Guide.Migration.md#migrating-from-detox-120x-to-121x
+```
+
+In the next major version `--file` and `--specs` will be treated as unknown arguments
+and therefore passed as-is to your appropriate test runner. That allows to avoid name
+conflict with the respective `--file` option in Mocha runner itself and other potential
+collisions.
+
+So, if you have been using CLI arguments like `--file e2e` or
+`--specs e2e`, please drop the preceding `--file` and `--specs`, so that:
+
+```
+detox test --file e2e/01.sanity.test.js
+```
+
+becomes:
+
+```
+detox test e2e/01.sanity.test.js
+```
+
+**UPDATE:** It was decided not to deprecate `"specs"` in `package.json`, so the text below
+is not relevant to a large extent. Please ignore the guide below.
+
+~To get rid of this warning:~
+
+* ~find `"specs"` or `"file"` entry in your project's `package.json` and empty it (e.g. `"e2e"` &#10230; `""`);~
+* ~update your `detox test` scripts — make sure they have an explicit path to your Detox tests folder, e.g. `detox test e2e`.~
+
+~For example, if it were a `package.json` before:~
+
+```json
+{
+  "name": "your-project",
+  "scripts": {
+    "e2e:ios": "detox test -c ios.simulator.release"
+  },
+  "detox": {
+    "specs": "e2e"
+  }
+}
+```
+
+~Then this is how it should look like afterwards:~
+
+```json
+{
+  "name": "your-project",
+  "scripts": {
+    "e2e:ios": "detox test -c ios.simulator.release e2e"
+  },
+  "detox": {
+    "specs": ""
+  }
+}
+```
+
+~Notice that we appended `e2e` to the `e2e:ios` test script and
+emptied `"specs"` property in `detox` configuration.~
+
+~In a case if you had no `"specs"` property in your `detox` configuration
+in `package.json`, then please add it temporarily like this:~
+
+```json
+{
+    "specs": ""
+}
+```
+
+## Migrating from Detox 11.0.1 to 12.0.0
+
+The new version explicity requires **Xcode 10.1 or higher** in order to run tests on iOS ([#1229](https://github.com/wix/Detox/issues/1229)).
+
+## Migrating from Detox 11.0.0 to 11.0.1 (nonbreaking)
+
+**React Native versions older than 0.46 are no longer supported**, so the `missingDimentsionStrategy` can be removed from `android/app/build.gradle`:
+
+```diff
+android {
+		defaultConfig {
+    		// ...
+-        missingDimensionStrategy "minReactNative", "minReactNative46"
+    }
+}
+```
+
+## Migrating from Detox 10.x.x to 11.x.x
+
+#### Step 1:
+
+`android/app/build.gradle`
+
+```diff
+android {
+    defaultConfig {
+         // ...
+-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
++        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+}
+
+dependencies {
+    implementation "com.facebook.react:react-native:+"  // From node_modules
+    androidTestImplementation(project(path: ":detox"))
+    androidTestImplementation 'junit:junit:4.12'
+-   androidTestImplementation 'com.android.support.test:runner:1.0.2'
+-   androidTestImplementation 'com.android.support.test:rules:1.0.2'
+```
+
+#### Step 2:
+
+Rewrite your `DetoxTest.java` file according to the updated [Android setup guide](Introduction.Android.md#4-create-android-test-class) (step 4).
+
 ## Migrating from Detox 9.x.x to 10.x.x
+
 If your project does not already use Kotlin, add the Kotlin Gradle-plugin to your classpath in `android/build.gradle`:
 
 ```groovy

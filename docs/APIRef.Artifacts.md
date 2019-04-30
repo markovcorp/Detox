@@ -16,7 +16,10 @@ Artifacts are disabled by default. Two things are required to enable them:
 
 * To record `.log` files, add `--record-logs all` (or `--record-logs failing`, if you want to keep logs only for failing tests).
 * To record `.mp4` test run videos, add `--record-videos all` (or `--record-videos failing`, if you want to keep video recordings only for failing tests).
-* To record `.png` screenshots before and after each test, add `--take-screenshots all` (or `--take-screenshots failing`, if you want to keep only screenshots of failing tests).
+* To record `.dtxrec` (Detox Instruments recordings) for each test, add `--record-performance all`. To open those recordings, you'll need [Detox Instruments](https://github.com/wix/DetoxInstruments). **NOTE:** only iOS is supported.
+* To take `.png` screenshots before and after each test, add `--take-screenshots all` (or `--take-screenshots failing`, if you want to keep only screenshots of failing tests).  
+Alternatively, you might leverage `await device.takeScreenshot('your screenshot name')` API to have manual control over taking the screenshots.  
+To disable screenshots subsystem forcibly, use `--take-screenshots none`.
 * To change artifacts root directory location (by default it is `./artifacts`), add `--artifacts-location <path>`.  
 **NOTE:** There is a slightly obscure convention. If you want to create automatically a subdirectory with timestamp and configuration name (to avoid file overwrites upon consquent re-runs), specify a path to directory that does not end with a slash. Otherwise, if you want to put artifacts straight to the specified directory (in a case where you make a single run only, e.g. on CI), add a slash (or a backslash) to the end.
 
@@ -41,6 +44,7 @@ detox test --artifacts-location /tmp/detox_artifacts/ # won't append anything, h
 ```
 test.log
 test.mp4
+test.dtxrec/
 beforeEach.png
 afterEach.png
 ```
@@ -65,11 +69,27 @@ Make sure you have `detox.beforeEach(testSummary)` and `detox.afterEach(testSumm
 
 For iOS, you might be getting errors on CI similar to this:
 
-```Error: Error Domain=NSPOSIXErrorDomain Code=22 "Invalid argument" UserInfo={NSLocalizedDescription=Video recording requires hardware Metal capability.}.```
+```
+Error: Error Domain=NSPOSIXErrorDomain Code=22 "Invalid argument" UserInfo={NSLocalizedDescription=Video recording requires hardware Metal capability.}.
+```
 
 Unfortunately, this error is beyond our reach. To fix it, you have to enable hardware acceleration on your build machine, or just disable video recording on CI if it is not possible to turn on the acceleration.
 
 There might be a similar issue on Android when the screenrecording process exits with an error on CI. While the solution might be identical to the one above, also you might try to experiment with other emulator devices and Android OS versions to see if it helps.
+
+### Detox Instruments is installed in a custom location
+
+If you have to use [Detox Instruments](https://github.com/wix/DetoxInstruments)
+installed in a custom location (e.g., inside `node_modules`), you can point Detox
+to it with the `DETOX_INSTRUMENTS_PATH` environment variable, as shown below:
+
+```bash
+DETOX_INSTRUMENTS_PATH="/path/to/Detox Instruments.app" detox test ...
+```
+
+Please mind that if **Detox Instruments** had been [integrated into
+your app](https://github.com/wix/DetoxInstruments/blob/master/Documentation/XcodeIntegrationGuide.md) (usually, that is in development builds), then the built-in version of [Detox Profiler framework](https://github.com/wix/DetoxInstruments/tree/master/Profiler) will always take priority over any custom path to Detox Instruments installation.
+
 
 ### Ctrl+C does not terminate Detox+Jest tests correctly
 
